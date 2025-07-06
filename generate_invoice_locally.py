@@ -2,7 +2,6 @@ import os
 import datetime
 import tempfile
 import smtplib
-import requests
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -18,9 +17,9 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 
 def get_first_and_last_name():
-    MY_FULL_NAME     = str(os.environ["MY_FULL_NAME"])
+    MY_FULL_NAME = str(os.environ["PERSON_NAME"])
 
-    if len(MY_FULL_NAME.split(" "))>1:
+    if len(MY_FULL_NAME.split(" ")) > 1:
         splitted_name = MY_FULL_NAME.split(" ")
         first_name = splitted_name[0]
         last_name = splitted_name[-1]
@@ -28,8 +27,6 @@ def get_first_and_last_name():
 
     elif MY_FULL_NAME:
         return MY_FULL_NAME, ""
-    
-
 
 
 def get_current_month_info():
@@ -38,7 +35,7 @@ def get_current_month_info():
     """
     now = datetime.datetime.now()
     first_day = datetime.datetime(now.year, now.month, 1)
-    # Add 1 month, subtract 1 day → last day of current month
+    # Add 1 month, subtract 1 day = last day of current month
     next_month = first_day.replace(day=28) + datetime.timedelta(days=4)
     last_day = next_month - datetime.timedelta(days=next_month.day)
     return {
@@ -50,30 +47,26 @@ def get_current_month_info():
 
 
 def build_invoice_pdf(pdf_path: str, month_info: dict):
-    """
-    Generate the invoice PDF at 'pdf_path' using ReportLab.
-    """
-    MY_PROFESSION = os.environ["MY_PROFESSION"]
-    CURRENCY_TO_BE_PAID = os.environ["CURRENCY_TO_BE_PAID"]
-    AMOUNT           = int(os.environ["SALARY"])
+    MY_PROFESSION       = os.environ["INVOICE_SERVICE_DESCRIPTION"]
+    CURRENCY_TO_BE_PAID = os.environ["INVOICE_CURRENCY"]
+    AMOUNT              = int(os.environ["INVOICE_AMOUNT"])
 
-    MY_FULL_NAME     = os.environ["MY_FULL_NAME"]
-    MY_NIF           = os.environ["MY_NIF"]
-    MY_ADDRESS       = os.environ["MY_ADDRESS"]
-    MY_POSTCODE      = os.environ["MY_POSTCODE"]
-    MY_LOCATION      = os.environ["MY_LOCATION"]
-    MY_COUNTRY       = os.environ["MY_COUNTRY"]
-    MY_PHONE         = os.environ["MY_PHONE"]
-    MY_HOTMAIL       = os.environ["MY_PERSONAL_HOTMAIL"]
-    MY_IBAN          = os.environ["MY_IBAN"]
-    MY_SWIFT         = os.environ["MY_SWIFT"]
-    MY_CORR_BIC      = os.environ["MY_CORRESPONDENT_BIC"]
+    MY_FULL_NAME        = os.environ["PERSON_NAME"]
+    MY_NIF              = os.environ["PERSON_TAX_ID"]
+    MY_ADDRESS          = os.environ["PERSON_ADDRESS"]
+    MY_POSTCODE         = os.environ["PERSON_POSTCODE"]
+    MY_LOCATION         = os.environ["PERSON_CITY"]
+    MY_COUNTRY          = os.environ["PERSON_COUNTRY"]
+    MY_PHONE            = os.environ["PERSON_PHONE"]
+    MY_HOTMAIL          = os.environ["EMAIL_CC_ADDRESS"]
 
-    EMPLOYER_NAME    = os.environ["EMPLOYER_NAME"]
-    EMPLOYER_ADDRESS = os.environ["EMPLOYER_ADDRESS"]
-    EMPLOYER_TAXID   = os.environ["EMPLOYER_TAXID"]
+    MY_IBAN             = os.environ["BANK_IBAN"]
+    MY_SWIFT            = os.environ["BANK_SWIFT"]
+    MY_CORR_BIC         = os.environ["BANK_CORRESPONDENT_BIC"]
 
-
+    EMPLOYER_NAME       = os.environ["CLIENT_NAME"]
+    EMPLOYER_ADDRESS    = os.environ["CLIENT_ADDRESS"]
+    EMPLOYER_TAXID      = os.environ["CLIENT_TAX_ID"]
 
     # ---- PDF document ----
     doc = SimpleDocTemplate(
@@ -97,7 +90,7 @@ def build_invoice_pdf(pdf_path: str, month_info: dict):
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
     elements.append(Spacer(1, 16))
 
-    # Your info
+    # Sender Information
     elements.append(Paragraph(f"""
 <b>Name:</b> {MY_FULL_NAME}<br/>
 <b>Tax ID:</b> {MY_NIF}<br/>
@@ -169,16 +162,13 @@ def build_invoice_pdf(pdf_path: str, month_info: dict):
 
 
 def send_email(pdf_path: str, month_info: dict):
-    """
-    Email the PDF through Gmail SMTP.
-    """
-    sender                  = os.environ["MY_PERSONAL_GMAIL"]
-    to_addr                 = os.environ["MY_WORK_EMAIL"]
-    cc_addr                 = os.environ["MY_PERSONAL_HOTMAIL"]
-    password                = os.environ["EMAIL_PASSWORD"]
+    sender      = os.environ["EMAIL_SENDER_ADDRESS"]
+    to_addr     = os.environ["EMAIL_RECIPIENT_ADDRESS"]
+    cc_addr     = os.environ["EMAIL_CC_ADDRESS"]
+    password    = os.environ["EMAIL_SENDER_PASSWORD"]
 
-    email_body_send_to_name = os.environ["EMAIL_BODY_SEND_TO_NAME"]
-    email_body_my_name      = os.environ["EMAIL_BODY_MY_NAME"]
+    email_body_send_to_name = os.environ["EMAIL_GREETING_NAME"]
+    email_body_my_name      = os.environ["EMAIL_SIGNATURE_NAME"]
 
     first_name, last_name = get_first_and_last_name()
 
@@ -229,9 +219,5 @@ def main():
         send_email(pdf_path, month_info)
 
 
-
 if __name__ == "__main__":
     main()
-
-
-
