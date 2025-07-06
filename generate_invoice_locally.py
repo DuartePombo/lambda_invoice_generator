@@ -220,7 +220,8 @@ def main():
     month_info = get_current_month_info()
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        pdf_name = (f"DuartePombo_{month_info['month_name']}_"
+        first_name, last_name = get_first_and_last_name()
+        pdf_name = (f"{first_name}{last_name}_{month_info['month_name']}_"
                     f"{month_info['year']}_invoice.pdf")
         pdf_path = os.path.join(tmpdir, pdf_name)
 
