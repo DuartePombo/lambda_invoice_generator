@@ -11,6 +11,10 @@ ROLE_NAME="lambda-basic-execution"   # IAM role ARN tail
 IMAGE_TAG="latest"
 DOCKERFILE="Dockerfile.lambda"
 ENV_FILE=".env"                      # local env file to sync
+
+# Lambda Runtime limits
+TIMEOUT_SECONDS=15                     # 1–900 s
+MEMORY_MB=256                          # 128–10240 MB
 # ──────────────────────────────────────────────────────────
 
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -36,15 +40,34 @@ if aws lambda get-function --function-name "$LAMBDA_NAME" --region "$REGION" >/d
       --region "$REGION" \
       --function-name "$LAMBDA_NAME" \
       --image-uri "$IMAGE_URI"
+
+  # Wait until the code update finishes
+  aws lambda wait function-updated \
+      --region "$REGION" \
+      --function-name "$LAMBDA_NAME"
+
+  # apply new timeout / memory as part of the same deploy
+  aws lambda update-function-configuration \
+      --region "$REGION" \
+      --function-name "$LAMBDA_NAME" \
+      --timeout "$TIMEOUT_SECONDS" \
+      --memory-size "$MEMORY_MB"
+
+  # Wait until the code update finishes
   aws lambda wait function-updated --function-name "$LAMBDA_NAME" --region "$REGION"
+
 else
   echo "Creating Lambda…"
+
   aws lambda create-function \
       --region "$REGION" \
       --function-name "$LAMBDA_NAME" \
       --package-type Image \
       --code ImageUri="$IMAGE_URI" \
-      --role "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+      --role "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
+      --timeout "$TIMEOUT_SECONDS" \
+      --memory-size "$MEMORY_MB"
+
   aws lambda wait function-active --function-name "$LAMBDA_NAME" --region "$REGION"
 fi
 
