@@ -1,0 +1,16 @@
+# Base image: AWS-supplied Python 3.11 Lambda runtime
+FROM public.ecr.aws/lambda/python:3.11
+
+# System libs for ReportLab (fonts / JPEG); zlib-devel is needed for PNG support
+RUN yum -y install gcc make freetype-devel libjpeg-turbo-devel zlib-devel \
+    && yum clean all
+
+# Copy dependencies and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the Lambda handler
+COPY invoice_lambda.py .
+
+# Lambda entry-point
+CMD ["invoice_lambda.handler"]
