@@ -1,36 +1,66 @@
 #!/usr/bin/env bash
-# Run once to schedule the Lambda on the *last* day of each month.
 set -euo pipefail
+export AWS_PAGER=""
 
+# ─── Configuration ───────────────────────────────────────────────────────
 REGION="eu-west-1"
-RULE_NAME="LastDayOfMonthRule"
+
 LAMBDA_NAME="SendMonthlyInvoice"
-STATEMENT_ID="EventBridgeInvoke-${RULE_NAME}"
 
-# 1) Create or update the EventBridge rule (00:05 UTC on last day of month)
-aws events put-rule \
-    --region "$REGION" \
-    --name   "$RULE_NAME" \
-    --schedule-expression "cron(5 0 L * ? *)"
+SCHEDULE_NAME="LastDay-0800-Ireland"
+TIME_ZONE="Europe/Dublin"                 # auto-handles DST
+CRON_EXPR="cron(0 8 L * ? *)"             # 8:00 on **L**ast day of month
 
-# 2) Attach the Lambda as the target
-TARGET_ARN=$(aws lambda get-function \
-               --region "$REGION" \
-               --function-name "$LAMBDA_NAME" \
-               --query 'Configuration.FunctionArn' --output text)
+ROLE_NAME="SchedulerInvokeLambda"
+# ─────────────────────────────────────────────────────────────────────────
 
-aws events put-targets --region "$REGION" \
-    --rule "$RULE_NAME" \
-    --targets "Id"="1","Arn"="$TARGET_ARN"
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
+FN_ARN=$(aws lambda get-function --function-name "$LAMBDA_NAME" --region "$REGION" \
+           --query 'Configuration.FunctionArn' --output text)
 
-# 3) Allow EventBridge to invoke the function (idempotent)
-aws lambda add-permission \
-    --region "$REGION" \
-    --function-name "$LAMBDA_NAME" \
-    --statement-id "$STATEMENT_ID" \
-    --action 'lambda:InvokeFunction' \
-    --principal events.amazonaws.com \
-    --source-arn "$(aws events describe-rule --name $RULE_NAME --region $REGION --query Arn --output text)" \
-    2>/dev/null || echo "Permission already exists, skipping."
+########################################
+# 1) Ensure the role exists & is ready #
+########################################
+if ! aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
+  echo "Creating IAM role $ROLE_NAME …"
+  aws iam create-role --role-name "$ROLE_NAME" \
+      --assume-role-policy-document '{
+        "Version":"2012-10-17",
+        "Statement":[{
+          "Effect":"Allow",
+          "Principal":{"Service":"scheduler.amazonaws.com"},
+          "Action":"sts:AssumeRole"
+        }]
+      }'
+fi
 
-echo "⏰  EventBridge rule '${RULE_NAME}' is in place."
+aws iam attach-role-policy --role-name "$ROLE_NAME" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaRole || true
+
+########################################
+# 2) Create or update the schedule     #
+########################################
+if aws scheduler get-schedule --name "$SCHEDULE_NAME" --region "$REGION" >/dev/null 2>&1; then
+  echo "Updating existing schedule $SCHEDULE_NAME …"
+  aws scheduler update-schedule \
+      --name "$SCHEDULE_NAME" \
+      --region "$REGION" \
+      --schedule-expression "$CRON_EXPR" \
+      --schedule-expression-timezone "$TIME_ZONE" \
+      --target "{\"Arn\":\"$FN_ARN\",\"RoleArn\":\"$ROLE_ARN\"}" \
+      --flexible-time-window '{"Mode":"OFF"}' \
+      --description "Run $LAMBDA_NAME at 8:00 on the last day of each month (Ireland time)"
+else
+  echo "Creating new schedule $SCHEDULE_NAME …"
+  aws scheduler create-schedule \
+      --name "$SCHEDULE_NAME" \
+      --region "$REGION" \
+      --schedule-expression "$CRON_EXPR" \
+      --schedule-expression-timezone "$TIME_ZONE" \
+      --target "{\"Arn\":\"$FN_ARN\",\"RoleArn\":\"$ROLE_ARN\"}" \
+      --flexible-time-window '{"Mode":"OFF"}' \
+      --description "Run $LAMBDA_NAME at 8:00 on the last day of each month (Ireland time)"
+fi
+
+echo "OK! Scheduler '$SCHEDULE_NAME' is now configured."
