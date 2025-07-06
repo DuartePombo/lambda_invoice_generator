@@ -255,7 +255,7 @@ cat response.json
 ## 📁 Project Structure
 
 ```
-automated-invoice-system/
+lambda_invoice_generator/
 ├── invoice_lambda.py          # Main application code
 ├── .env.example              # Environment variables template
 ├── .env                      # Your environment variables (not in git)
