@@ -1,8 +1,6 @@
 # Invoice Generator
 
-**Personal Project Disclaimer**: I created this for my own monthly billing needs and decided to share it publicly in case it helps other freelancers and consultants. The following README is obviously AI-generated, but I read quickly through it and looks good enough to me.
-
-Having said this, if you are interested in using this and run into any issues with the setup and this README does not help much, feel free to reach out! 
+**Personal Project Disclaimer**: I created this for my own monthly billing needs and decided to share it publicly in case it helps other freelancers and consultants. If you are interested in using this and run into any issues with the setup, feel free to reach out! 
 
 ## 📋 Table of Contents
 
